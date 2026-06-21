@@ -30,7 +30,7 @@ formatted_date = today.strftime("%d-%m-%Y")
 
 with open(f'static/{formatted_date}_sensor_data.csv', mode='w', newline='') as file:
     writer = csv.writer(file)
-    headers = ["Time", "Temperature", "Humidity", "AQ"]
+    headers = ["time", "Temperature", "Humidity", "AQ"]
     writer.writerow(headers)
 
     print("Listening to Arduino... Press Ctrl+C to stop.")
