@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air Quality Monitor</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0f172a;
+            --primary-hover: #1e293b;
+            --bg-glass: rgba(255, 255, 255, 0.85);
+            --border-glass: rgba(255, 255, 255, 0.6);
+            --shadow-premium: 0 10px 30px -10px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.05);
+            --transition-smooth: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+
+        /* Full Screen Map Background */
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        /* General Glass Card Component */
+        .glass-card {
+            background: var(--bg-glass);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-glass);
+            box-shadow: var(--shadow-premium);
+            border-radius: 20px;
+            transition: var(--transition-smooth);
+        }
+
+        /* Central Hero Panel (Transitions to sidebar) */
+        .hero-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 440px;
+            max-width: 90%;
+            padding: 36px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            text-align: center;
+        }
+
+        /* Title Typography */
+        .hero-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.2;
+            background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-subtitle {
+            font-size: 14px;
+            color: #64748b;
+            margin-top: -12px;
+            font-weight: 400;
+        }
+
+        /* Button Styling */
+        .btn-primary {
+            background: var(--primary);
+            color: #ffffff;
+            border: none;
+            padding: 14px 24px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+            display: inline-block;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.2);
+        }
+
+        .btn-primary:active {
+            transform: translateY(1px);
+        }
+
+        /* Form sections for step-by-step loading */
+        .form-section {
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+            text-align: left;
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .form-select, .form-input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #cbd5e1;
+            background: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            color: #0f172a;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .form-select:focus, .form-input:focus {
+            border-color: var(--primary);
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1);
+        }
+
+        .input-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .map-hint {
+            font-size: 12px;
+            color: #64748b;
+            background: #f1f5f9;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border-left: 3px solid #64748b;
+        }
+
+        /* Active Dashboard Layout State */
+        .dashboard-active .hero-panel {
+            top: 20px;
+            left: 20px;
+            transform: translate(0, 0);
+            width: 360px;
+            padding: 24px;
+            text-align: left;
+            border-radius: 16px;
+        }
+
+        .dashboard-active .hero-title {
+            font-size: 22px;
+        }
+
+        .dashboard-active .hero-subtitle {
+            display: none;
+        }
+
+        .dashboard-active .initial-actions {
+            display: none !important;
+        }
+
+        /* Dashboard Specific Controls (Hidden initially) */
+        .dashboard-controls {
+            display: none;
+            flex-direction: column;
+            gap: 20px;
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        .dashboard-active .dashboard-controls {
+            display: flex;
+        }
+
+        .info-row {
+            font-size: 13px;
+            color: #64748b;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        /* Metric Selector Buttons (Pushed-in logic) */
+        .metric-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .metric-btn {
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            border-radius: 12px;
+            padding: 14px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            text-align: center;
+        }
+
+        /* Raised State (Active Button) */
+        .metric-btn.raised {
+            background: #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+            transform: translateY(-2px);
+        }
+
+        .metric-btn.raised.temp-active {
+            color: #ea580c;
+            border-color: #ffedd5;
+            background: #fff7ed;
+            box-shadow: 0 6px 16px rgba(234, 88, 12, 0.15);
+        }
+
+        .metric-btn.raised.moist-active {
+            color: #2563eb;
+            border-color: #dbeafe;
+            background: #eff6ff;
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.15);
+        }
+
+        .metric-btn.raised.aq-active {
+            color: #059669;
+            border-color: #d1fae5;
+            background: #ecfdf5;
+            box-shadow: 0 6px 16px rgba(5, 150, 105, 0.15);
+        }
+
+        /* Pushed-In State (Unselected Buttons when one is clicked) */
+        .metric-btn.pushed-in {
+            background: #f1f5f9;
+            color: #94a3b8;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.08), inset 0 1px 2px rgba(0, 0, 0, 0.04);
+            transform: translateY(1px);
+            border-color: rgba(0, 0, 0, 0.04);
+        }
+
+        /* Standard unselected state (before any click) */
+        .metric-btn.unselected {
+            background: #ffffff;
+            color: #475569;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .metric-btn.unselected:hover {
+            background: #f8fafc;
+            transform: translateY(-1px);
+        }
+
+        /* Square Average Widget */
+        .stats-card {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            border-radius: 16px;
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stats-card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stats-card-main-val {
+            font-size: 32px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .stats-card-sub-val {
+            font-size: 14px;
+            color: #475569;
+            font-weight: 500;
+        }
+
+        .stats-card-label {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        /* Floating Bottom Timeline Panel */
+        .timeline-panel {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translate(-50%, 40px);
+            width: 620px;
+            max-width: 90%;
+            padding: 16px 24px;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            opacity: 0;
+            pointer-events: none;
+            transition: var(--transition-smooth);
+        }
+
+        .dashboard-active .timeline-panel {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translate(-50%, 0);
+        }
+
+        /* Play Button (Text only) */
+        .play-btn {
+            background: #0f172a;
+            color: #ffffff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 76px;
+            text-align: center;
+        }
+
+        .play-btn:hover {
+            background: #1e293b;
+        }
+
+        .play-btn.playing {
+            background: #ef4444;
+        }
+
+        /* Range Slider */
+        .slider-container {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        .time-slider {
+            width: 100%;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: #e2e8f0;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .time-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #0f172a;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            transition: transform 0.1s ease;
+        }
+
+        .time-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .time-display {
+            font-size: 13px;
+            font-weight: 600;
+            color: #334155;
+            min-width: 80px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Leaflet Map background -->
+    <div id="map"></div>
+
+    <!-- Main Dashboard Card -->
+    <div id="heroCard" class="hero-panel glass-card">
+        <div class="hero-header">
+            <h1 class="hero-title" id="mainTitle">Air Quality Monitor</h1>
+            <p class="hero-subtitle">Geospatial environmental dashboard analyzing local air, temperature, and moisture levels.</p>
+        </div>
+
+        <!-- Initial Actions State (Landing page) -->
+        <div class="initial-actions" id="initialActions">
+            <button class="btn-primary" onclick="showFileImporter()">Import Data</button>
+        </div>
+
+        <!-- File Importer section (Appears on click) -->
+        <div class="form-section" id="fileImporterSection">
+            <div class="form-group">
+                <label for="fileSelect">Select Sensor Data File</label>
+                <select id="fileSelect" class="form-select" onchange="onFileSelected()">
+                    <option value="">-- Choose a CSV File --</option>
+                    {% for file in files %}
+                        <option value="{{ file }}">{{ file }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Coordinate inputs (Appears after file is selected) -->
+            <div class="form-section" id="coordinatesSection">
+                <div class="form-group">
+                    <label>Set Location Coordinates</label>
+                    <div class="map-hint">
+                        Type coordinates below, or click directly on the map background to place a pin.
+                    </div>
+                    <div class="input-row">
+                        <input type="number" id="latInput" class="form-input" placeholder="Latitude (e.g. 15.849)" step="any" required>
+                        <input type="number" id="lonInput" class="form-input" placeholder="Longitude (e.g. 74.497)" step="any" required>
+                    </div>
+                </div>
+                <button class="btn-primary" style="width: 100%; margin-top: 8px;" onclick="loadDashboard()">Analyze Data</button>
+            </div>
+        </div>
+
+        <!-- Dashboard Mode Controls (Active after loading data) -->
+        <div class="dashboard-controls">
+            <div class="info-row" id="dashboardInfo">
+                Loading...
+            </div>
+
+            <!-- Metric selectors (Pushed-in logic) -->
+            <div class="metric-group">
+                <div id="btnTemp" class="metric-btn unselected" onclick="changeMetric('Temperature')">Temperature</div>
+                <div id="btnMoist" class="metric-btn unselected" onclick="changeMetric('Moisture')">Moisture</div>
+                <div id="btnAQ" class="metric-btn unselected" onclick="changeMetric('AQ')">Air Quality (AQ)</div>
+            </div>
+
+            <!-- Square Widget with Rounded Corners showing stats -->
+            <div class="stats-card">
+                <span class="stats-card-title" id="statsTitle">Metric Stats</span>
+                <span class="stats-card-main-val" id="statsCurrentValue">--</span>
+                <span class="stats-card-sub-val" id="statsAverageValue">Average: --</span>
+                <span class="stats-card-label" id="statsTimeLabel">At Time: --</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline slider panel (Bottom float) -->
+    <div id="timelinePanel" class="timeline-panel glass-card">
+        <button id="playBtn" class="play-btn" onclick="togglePlay()">Play</button>
+        <div class="slider-container">
+            <input type="range" id="timeSlider" class="time-slider" min="0" value="0" step="1">
+        </div>
+        <span id="timeDisplay" class="time-display">Time: --</span>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // App states: 'landing', 'importing', 'dashboard'
+        let appState = 'landing';
+
+        // Map setup
+        let map = L.map('map', {
+            zoomControl: false // Hide zoom control for cleaner aesthetics
+        }).setView([20, 0], 2.5); // Global view initially
+
+        // Premium CartoDB Positron tiles
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap contributors, © CartoDB'
+        }).addTo(map);
+
+        // UI layers
+        let markerLayer = L.layerGroup().addTo(map);
+        let tempPin = null; // Temporary picker pin
+        let dashboardMarker = null; // Main dynamic analysis pin
+
+        // Data states
+        let rawData = [];
+        let currentMetric = 'Temperature';
+        let currentAverage = 0;
+        let uniqueTimes = [];
+        let sliderIndex = 0;
+        let playInterval = null;
+
+        // Min/Max metrics for dynamic color scaling
+        let metricBounds = { min: 0, max: 100 };
+
+        // STEP 1: Show file importer
+        function showFileImporter() {
+            appState = 'importing';
+            document.getElementById('initialActions').style.display = 'none';
+            document.getElementById('fileImporterSection').style.display = 'flex';
+        }
+
+        // STEP 2: When file chosen, show coordinate form
+        function onFileSelected() {
+            const fileSelect = document.getElementById('fileSelect');
+            if (fileSelect.value) {
+                document.getElementById('coordinatesSection').style.display = 'flex';
+                // Pre-fill with reasonable defaults
+                document.getElementById('latInput').value = "15.8497";
+                document.getElementById('lonInput').value = "74.4977";
+                
+                // Position temporary map marker
+                updateTempMarker(15.8497, 74.4977);
+                map.flyTo([15.8497, 74.4977], 12);
+            } else {
+                document.getElementById('coordinatesSection').style.display = 'none';
+                if (tempPin) {
+                    markerLayer.removeLayer(tempPin);
+                    tempPin = null;
+                }
+            }
+        }
+
+        // Handle Map click to pick coordinates (only in importing state)
+        map.on('click', function(e) {
+            if (appState === 'importing') {
+                const lat = e.latlng.lat.toFixed(6);
+                const lon = e.latlng.lng.toFixed(6);
+                document.getElementById('latInput').value = lat;
+                document.getElementById('lonInput').value = lon;
+                updateTempMarker(lat, lon);
+            }
+        });
+
+        // Update the temporary draggable marker
+        function updateTempMarker(lat, lon) {
+            if (tempPin) {
+                tempPin.setLatLng([lat, lon]);
+            } else {
+                tempPin = L.marker([lat, lon], { draggable: true }).addTo(markerLayer);
+                tempPin.on('dragend', function(event) {
+                    const marker = event.target;
+                    const position = marker.getLatLng();
+                    document.getElementById('latInput').value = position.lat.toFixed(6);
+                    document.getElementById('lonInput').value = position.lng.toFixed(6);
+                });
+            }
+        }
+
+        // STEP 3: Transition to Dashboard layout and load data
+        function loadDashboard() {
+            const file = document.getElementById('fileSelect').value;
+            const lat = parseFloat(document.getElementById('latInput').value);
+            const lon = parseFloat(document.getElementById('lonInput').value);
+
+            if (!file) {
+                alert("Please select a sensor data file.");
+                return;
+            }
+            if (isNaN(lat) || isNaN(lon)) {
+                alert("Please enter or click on the map to set coordinates.");
+                return;
+            }
+
+            // Set state to active
+            appState = 'dashboard';
+            document.body.classList.add('dashboard-active');
+            document.getElementById('dashboardInfo').innerText = "Data: " + file;
+
+            // Remove temporary pin
+            if (tempPin) {
+                markerLayer.removeLayer(tempPin);
+                tempPin = null;
+            }
+
+            // Fly map closer to the target point
+            map.flyTo([lat, lon], 15);
+
+            // Fetch data
+            fetchData(file, lat, lon);
+        }
+
+        // Fetch data from Flask backend
+        function fetchData(file, lat, lon) {
+            fetch(`/get_data?file=${file}&metric=${currentMetric}`)
+                .then(res => res.json())
+                .then(result => {
+                    rawData = result.data;
+                    currentAverage = result.average;
+                    
+                    // Extract unique times
+                    uniqueTimes = [...new Set(rawData.map(row => row.time))].sort();
+
+                    // Calculate data bounds for color scaling
+                    calculateMetricBounds();
+
+                    // Setup timeline slider
+                    const slider = document.getElementById('timeSlider');
+                    slider.max = uniqueTimes.length - 1;
+                    slider.value = 0;
+                    sliderIndex = 0;
+
+                    // Initialize the dashboard marker on map
+                    if (dashboardMarker) {
+                        markerLayer.removeLayer(dashboardMarker);
+                    }
+                    dashboardMarker = L.circleMarker([lat, lon], {
+                        radius: 20,
+                        fillColor: '#cbd5e1',
+                        color: '#ffffff',
+                        weight: 4,
+                        opacity: 1,
+                        fillOpacity: 0.9
+                    }).addTo(markerLayer);
+
+                    // Render default view
+                    updateMetricButtonStyles();
+                    updateTimeState(0);
+                })
+                .catch(err => {
+                    console.error("Error loading data:", err);
+                    alert("Error loading data. Please check app.py server.");
+                });
+        }
+
+        // Change metric and trigger update
+        function changeMetric(newMetric) {
+            if (newMetric === currentMetric) return;
+            currentMetric = newMetric;
+            
+            const file = document.getElementById('fileSelect').value;
+            const lat = parseFloat(document.getElementById('latInput').value);
+            const lon = parseFloat(document.getElementById('lonInput').value);
+
+            // Fetch new averages
+            fetch(`/get_data?file=${file}&metric=${currentMetric}`)
+                .then(res => res.json())
+                .then(result => {
+                    currentAverage = result.average;
+                    calculateMetricBounds();
+                    updateMetricButtonStyles();
+                    updateTimeState(sliderIndex);
+                });
+        }
+
+        // Update pushed-in / raised button styling
+        function updateMetricButtonStyles() {
+            const btnTemp = document.getElementById('btnTemp');
+            const btnMoist = document.getElementById('btnMoist');
+            const btnAQ = document.getElementById('btnAQ');
+
+            const buttons = [
+                { el: btnTemp, id: 'Temperature', activeClass: 'temp-active' },
+                { el: btnMoist, id: 'Moisture', activeClass: 'moist-active' },
+                { el: btnAQ, id: 'AQ', activeClass: 'aq-active' }
+            ];
+
+            buttons.forEach(btn => {
+                btn.el.className = 'metric-btn'; // Reset
+                if (btn.id === currentMetric) {
+                    btn.el.classList.add('raised', btn.activeClass);
+                } else {
+                    btn.el.classList.add('pushed-in');
+                }
+            });
+        }
+
+        // Compute local min & max for scale mapping
+        function calculateMetricBounds() {
+            if (rawData.length === 0) return;
+            const values = rawData.map(row => parseFloat(row[currentMetric])).filter(v => !isNaN(v));
+            if (values.length > 0) {
+                metricBounds.min = Math.min(...values);
+                metricBounds.max = Math.max(...values);
+            }
+        }
+
+        // Get color interpolation based on normalized value
+        function getColorForValue(val) {
+            if (metricBounds.max === metricBounds.min) return 'hsl(210, 80%, 55%)';
+            const norm = (val - metricBounds.min) / (metricBounds.max - metricBounds.min);
+            
+            if (currentMetric === 'Temperature') {
+                // Cool blue (0) to warm red (1)
+                const hue = 210 - (norm * 200); // 210 -> 10
+                return `hsl(${hue}, 85%, 50%)`;
+            } else if (currentMetric === 'Moisture') {
+                // Light sky blue (0) to deep ocean blue (1)
+                const lightness = 75 - (norm * 30); // 75% -> 45%
+                return `hsl(215, 80%, ${lightness}%)`;
+            } else {
+                // AQ: Fresh Green (0) to Warnings Orange/Red (1)
+                const hue = 130 - (norm * 130); // 130 -> 0
+                return `hsl(${hue}, 80%, 45%)`;
+            }
+        }
+
+        // Update UI states for a specific timeline step
+        function updateTimeState(index) {
+            if (uniqueTimes.length === 0) return;
+            sliderIndex = index;
+            const time = uniqueTimes[index];
+            document.getElementById('timeDisplay').innerText = "Time: " + time;
+            document.getElementById('timeSlider').value = index;
+
+            // Find value at this time
+            const record = rawData.find(row => row.time === time);
+            let val = "--";
+            if (record && record[currentMetric] !== undefined) {
+                val = parseFloat(record[currentMetric]);
+            }
+
+            // Update square stats widget
+            const unit = currentMetric === 'Temperature' ? '°C' : (currentMetric === 'Moisture' ? '%' : '');
+            document.getElementById('statsTitle').innerText = currentMetric;
+            document.getElementById('statsCurrentValue').innerText = val !== "--" ? `${val.toFixed(1)}${unit}` : '--';
+            document.getElementById('statsAverageValue').innerText = `Average: ${currentAverage.toFixed(1)}${unit}`;
+            document.getElementById('statsTimeLabel').innerText = `At Time: ${time}`;
+
+            // Update Map Marker visual
+            if (dashboardMarker && val !== "--") {
+                const color = getColorForValue(val);
+                dashboardMarker.setStyle({
+                    fillColor: color,
+                    radius: 14 + (val - metricBounds.min) / (metricBounds.max - metricBounds.min || 1) * 12
+                });
+                
+                // Live tooltip/popup content
+                dashboardMarker.bindPopup(`
+                    <div style="font-size:13px; font-weight:600;">Location Analysis</div>
+                    <div style="font-size:12px; margin-top:4px;">Time: ${time}</div>
+                    <div style="font-size:12px; color: ${color}; font-weight:700;">${currentMetric}: ${val.toFixed(1)}${unit}</div>
+                `).openPopup();
+            }
+        }
+
+        // Handle timeline slider drag
+        document.getElementById('timeSlider').addEventListener('input', function(e) {
+            updateTimeState(parseInt(e.target.value));
+        });
+
+        // Autoplay toggle (text-only controls)
+        function togglePlay() {
+            const btn = document.getElementById('playBtn');
+            const slider = document.getElementById('timeSlider');
+
+            if (playInterval) {
+                clearInterval(playInterval);
+                playInterval = null;
+                btn.innerText = "Play";
+                btn.classList.remove('playing');
+            } else {
+                btn.innerText = "Pause";
+                btn.classList.add('playing');
+                
+                playInterval = setInterval(() => {
+                    let currentVal = parseInt(slider.value);
+                    if (currentVal >= uniqueTimes.length - 1) {
+                        slider.value = 0;
+                    } else {
+                        slider.value = currentVal + 1;
+                    }
+                    updateTimeState(parseInt(slider.value));
+                }, 1000); // 1-second ticks
+            }
+        }
+    </script>
+</body>
+</html>

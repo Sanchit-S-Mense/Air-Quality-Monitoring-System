@@ -28,7 +28,7 @@ except serial.SerialException as e:
 today = datetime.now()
 formatted_date = today.strftime("%d-%m-%Y")
 
-with open(f'{formatted_date}_sensor_data.csv', mode='w', newline='') as file:
+with open(f'static/{formatted_date}_sensor_data.csv', mode='w', newline='') as file:
     writer = csv.writer(file)
     headers = ["Time", "Temperature", "Humidity", "AQ"]
     writer.writerow(headers)
