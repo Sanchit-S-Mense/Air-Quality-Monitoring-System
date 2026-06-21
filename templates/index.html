@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Air Quality Monitor</title>
+    <title> Air Quality Monitor </title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -72,10 +73,11 @@
 
         /* Title Typography */
         .hero-title {
-            font-size: 28px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 26px;
             font-weight: 700;
             color: #0f172a;
-            line-height: 1.2;
+            line-height: 1.0;
             background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -637,8 +639,8 @@
                         fillColor: '#cbd5e1',
                         color: '#ffffff',
                         weight: 4,
-                        opacity: 1,
-                        fillOpacity: 0.9
+                        opacity: 0.6,
+                        fillOpacity: 0.4
                     }).addTo(markerLayer);
 
                     // Render default view
@@ -750,6 +752,7 @@
                 const color = getColorForValue(val);
                 dashboardMarker.setStyle({
                     fillColor: color,
+                    fillOpacity: 0.4,
                     radius: 14 + (val - metricBounds.min) / (metricBounds.max - metricBounds.min || 1) * 12
                 });
                 
