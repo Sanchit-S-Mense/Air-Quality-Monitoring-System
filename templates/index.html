@@ -468,7 +468,7 @@
             <!-- Metric selectors (Pushed-in logic) -->
             <div class="metric-group">
                 <div id="btnTemp" class="metric-btn unselected" onclick="changeMetric('Temperature')">Temperature</div>
-                <div id="btnMoist" class="metric-btn unselected" onclick="changeMetric('Moisture')">Moisture</div>
+                <div id="btnMoist" class="metric-btn unselected" onclick="changeMetric('Moisture')">Humidity</div>
                 <div id="btnAQ" class="metric-btn unselected" onclick="changeMetric('AQ')">Air Quality (AQ)</div>
             </div>
 
@@ -795,6 +795,8 @@
                 }, 1000); // 1-second ticks
             }
         }
+        //Made changes to import more than one sensor data at the same time, considering they are at different locations and
+        //at the same time
     </script>
 </body>
 </html>
